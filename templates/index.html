@@ -1,0 +1,1927 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据库表结构设计器</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🗃️</text></svg>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.4;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* 工具栏样式 */
+        .toolbar {
+            width: 250px;
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .toolbar h2 {
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            border-bottom: 1px solid #34495e;
+            padding-bottom: 8px;
+        }
+        
+        .tool-item {
+            background-color: #34495e;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            cursor: move;
+            transition: all 0.3s;
+            user-select: none;
+            display: flex;
+            align-items: center;
+        }
+        
+        .tool-item i {
+            margin-right: 8px;
+        }
+        
+        .tool-item:hover {
+            background-color: #3d566e;
+            transform: translateY(-2px);
+        }
+        
+        /* 画布区域样式 */
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            background-color: #ecf0f1;
+            overflow: auto;
+            padding: 20px;
+        }
+        
+        .canvas {
+            position: relative;
+            min-height: 100%;
+            min-width: 100%;
+        }
+        
+        /* 表结构样式 */
+        .table {
+            position: absolute;
+            width: 280px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            cursor: move;
+            z-index: 10;
+        }
+        
+        .table-header {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 15px;
+            font-weight: bold;
+            cursor: move;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .table-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .table-action-btn {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 0.8rem;
+            padding: 2px 5px;
+            border-radius: 3px;
+            transition: background 0.2s;
+        }
+        
+        .table-action-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .table-body {
+            padding: 8px 0;
+        }
+        
+        .table-row {
+            display: flex;
+            padding: 6px 15px;
+            border-bottom: 1px solid #eee;
+            position: relative;
+            cursor: pointer;
+        }
+        
+        .table-row:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .table-row.selected {
+            background-color: #e3f2fd;
+        }
+        
+        .table-row:last-child {
+            border-bottom: none;
+        }
+        
+        .field-name {
+            flex: 1;
+            font-weight: 500;
+        }
+        
+        .field-type {
+            color: #7f8c8d;
+            font-size: 0.85rem;
+            width: 80px;
+            text-align: right;
+        }
+        
+        .field-actions {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: none;
+        }
+        
+        .table-row:hover .field-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .field-action-btn {
+            background: none;
+            border: none;
+            color: #7f8c8d;
+            cursor: pointer;
+            font-size: 0.7rem;
+            padding: 2px;
+            border-radius: 2px;
+        }
+        
+        .field-action-btn:hover {
+            background: #e0e0e0;
+            color: #333;
+        }
+        
+        /* 属性面板样式 */
+        .properties {
+            width: 320px;
+            background-color: white;
+            border-left: 1px solid #ddd;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .properties h2 {
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+        }
+        
+        .property-group {
+            margin-bottom: 15px;
+        }
+        
+        .property-group h3 {
+            font-size: 1rem;
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+        
+        .property-item {
+            margin-bottom: 10px;
+        }
+        
+        .property-item label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: 500;
+            color: #555;
+            font-size: 0.9rem;
+        }
+        
+        .property-item input, .property-item select {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+        
+        .property-section {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .property-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            padding: 8px 0;
+        }
+        
+        .property-section-header h3 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+            color: #2c3e50;
+            font-size: 0.95rem;
+        }
+        
+        .property-section-header i {
+            color: #3498db;
+            transition: transform 0.3s ease;
+        }
+        
+        .property-section-header.collapsed i.fa-chevron-down {
+            transform: rotate(-90deg);
+        }
+        
+        .property-section-content {
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            max-height: 1000px;
+        }
+        
+        .property-section-content.collapsed {
+            max-height: 0;
+        }
+        
+        /* 连接线样式 */
+        .relationship {
+            position: absolute;
+            z-index: 5;
+            pointer-events: none;
+        }
+        
+        .relationship-line {
+            stroke: #e74c3c;
+            stroke-width: 2;
+        }
+        
+        /* 按钮样式 */
+        .btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background-color 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-danger {
+            background-color: #e74c3c;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+        
+        .btn-success {
+            background-color: #2ecc71;
+        }
+        
+        .btn-success:hover {
+            background-color: #27ae60;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .btn-full {
+            width: 100%;
+            justify-content: center;
+            margin-bottom: 8px;
+        }
+        
+        /* JSON编辑器样式 */
+        .json-editor, .sql-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            display: none;
+        }
+        
+        .json-editor-content, .sql-modal-content {
+            background: white;
+            width: 90%;
+            height: 90%;
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .json-editor-header, .sql-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .json-editor-body, .sql-modal-body {
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+            color: #24292e;
+            overflow: auto;
+            white-space: pre-wrap;
+        }
+        
+        .json-editor-textarea {
+            width: 100%;
+            height: 100%;
+            border: none;
+            outline: none;
+            resize: none;
+            background: transparent;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #24292e;
+        }
+        
+        /* JSON语法高亮 */
+        .json-key {
+            color: #d73a49;
+            font-weight: bold;
+        }
+        
+        .json-string {
+            color: #032f62;
+        }
+        
+        .json-number {
+            color: #005cc5;
+        }
+        
+        .json-boolean {
+            color: #6f42c1;
+        }
+        
+        .json-null {
+            color: #e36209;
+        }
+        
+        .json-bracket {
+            color: #24292e;
+            font-weight: bold;
+        }
+        
+        .json-colon {
+            color: #24292e;
+        }
+        
+        .json-comma {
+            color: #24292e;
+        }
+        
+        /* SQL语法高亮 */
+        .sql-keyword {
+            color: #d73a49;
+            font-weight: bold;
+        }
+        
+        .sql-table {
+            color: #6f42c1;
+        }
+        
+        .sql-field {
+            color: #005cc5;
+        }
+        
+        .sql-type {
+            color: #032f62;
+        }
+        
+        .sql-comment {
+            color: #6a737d;
+            font-style: italic;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .toolbar, .properties {
+                width: 100%;
+                height: auto;
+            }
+            
+            .toolbar {
+                order: 2;
+            }
+            
+            .canvas-container {
+                order: 1;
+                height: 60vh;
+            }
+            
+            .properties {
+                order: 3;
+                border-left: none;
+                border-top: 1px solid #ddd;
+            }
+        }
+        
+        /* 顶部菜单样式 */
+        .top-menu {
+            background-color: #2c3e50;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .top-menu h1 {
+            font-size: 1.5rem;
+        }
+        
+        .menu-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        /* 状态栏样式 */
+        .status-bar {
+            background-color: #34495e;
+            color: white;
+            padding: 5px 20px;
+            font-size: 0.8rem;
+        }
+        
+        .properties-actions {
+            margin-top: auto;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 5px;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .checkbox-item input {
+            width: auto;
+        }
+        
+        .checkbox-item label {
+            margin-bottom: 0;
+            font-size: 0.85rem;
+        }
+
+        /* 加载动画 */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 通知样式 */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 4px;
+            color: white;
+            z-index: 1000;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+        }
+
+        .notification.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background-color: #2ecc71;
+        }
+
+        .notification.error {
+            background-color: #e74c3c;
+        }
+
+        .notification.info {
+            background-color: #3498db;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部菜单 -->
+    <div class="top-menu">
+        <h1><i class="fas fa-database"></i> 数据库表结构设计器</h1>
+        <div class="menu-actions">
+            <button class="btn" id="load-tables"><i class="fas fa-sync-alt"></i> 加载表</button>
+            <button class="btn btn-success" id="save-table"><i class="fas fa-save"></i> 保存表</button>
+            <button class="btn" id="export-json"><i class="fas fa-file-export"></i> 导出JSON</button>
+            <button class="btn btn-success" id="generate-sql"><i class="fas fa-code"></i> 生成SQL</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- 左侧工具栏 -->
+        <div class="toolbar">
+            <h2>工具箱</h2>
+            <div class="tool-item" draggable="true" data-type="table">
+                <i class="fas fa-table"></i> 数据表
+            </div>
+            <div class="tool-item" id="btn-new-table">
+                <i class="fas fa-plus"></i> 新建表
+            </div>
+            
+            <h2 style="margin-top: 30px;">操作</h2>
+            <div class="tool-item" id="btn-add-field">
+                <i class="fas fa-plus-circle"></i> 添加字段
+            </div>
+            <div class="tool-item" id="btn-copy-table">
+                <i class="fas fa-copy"></i> 复制表
+            </div>
+            <div class="tool-item" id="btn-json-editor">
+                <i class="fas fa-code"></i> JSON编辑器
+            </div>
+        </div>
+        
+        <!-- 中间画布区域 -->
+        <div class="canvas-container">
+            <div class="canvas" id="canvas">
+                <!-- 表结构将通过JS动态添加 -->
+            </div>
+        </div>
+        
+        <!-- 右侧属性面板 -->
+        <div class="properties">
+            <h2>属性面板</h2>
+            
+            <div class="property-section">
+                <div class="property-section-header" id="table-properties-header">
+                    <h3><i class="fas fa-table"></i> 表属性</h3>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="property-section-content" id="table-properties-content">
+                    <div class="property-item">
+                        <label for="table-name">表名</label>
+                        <input type="text" id="table-name" placeholder="输入表名">
+                    </div>
+                    <div class="property-item">
+                        <label for="table-comment">注释</label>
+                        <input type="text" id="table-comment" placeholder="表注释">
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-success btn-full" id="sync-table"><i class="fas fa-cloud-upload-alt"></i> 同步到数据库</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="property-section">
+                <div class="property-section-header" id="field-properties-header">
+                    <h3><i class="fas fa-list"></i> 字段属性</h3>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="property-section-content" id="field-properties-content">
+                    <div class="property-item">
+                        <label for="field-name">字段名</label>
+                        <input type="text" id="field-name" placeholder="字段名">
+                    </div>
+                    <div class="property-item">
+                        <label for="field-type">数据类型</label>
+                        <select id="field-type">
+                            <option value="INTEGER">INTEGER</option>
+                            <option value="VARCHAR">VARCHAR</option>
+                            <option value="TEXT">TEXT</option>
+                            <option value="DATETIME">DATETIME</option>
+                            <option value="DATE">DATE</option>
+                            <option value="TIME">TIME</option>
+                            <option value="BOOLEAN">BOOLEAN</option>
+                            <option value="DECIMAL">DECIMAL</option>
+                            <option value="FLOAT">FLOAT</option>
+                            <option value="DOUBLE">DOUBLE</option>
+                            <option value="BLOB">BLOB</option>
+                            <option value="JSON">JSON</option>
+                        </select>
+                    </div>
+                    <div class="property-item">
+                        <label for="field-length">长度/值</label>
+                        <input type="text" id="field-length" placeholder="例如: 255">
+                    </div>
+                    <div class="property-item">
+                        <label for="field-default">默认值</label>
+                        <input type="text" id="field-default" placeholder="默认值">
+                    </div>
+                    <div class="property-item">
+                        <label for="field-comment">字段注释</label>
+                        <input type="text" id="field-comment" placeholder="字段注释">
+                    </div>
+                    <div class="property-item">
+                        <div class="checkbox-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="field-primary">
+                                <label for="field-primary">主键</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="field-nullable" checked>
+                                <label for="field-nullable">允许为空</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="field-unique">
+                                <label for="field-unique">唯一</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="properties-actions">
+                <div class="btn-group">
+                    <button class="btn btn-full" id="add-field"><i class="fas fa-plus"></i> 添加字段</button>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-full" id="update-field"><i class="fas fa-save"></i> 更新字段</button>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-danger btn-full" id="delete-field"><i class="fas fa-trash"></i> 删除字段</button>
+                    <button class="btn btn-danger btn-full" id="delete-table"><i class="fas fa-trash"></i> 删除表</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 状态栏 -->
+    <div class="status-bar" id="status-bar">
+        就绪 - 选择一个表开始编辑
+    </div>
+    
+    <!-- JSON编辑器模态框 -->
+    <div class="json-editor" id="json-editor">
+        <div class="json-editor-content">
+            <div class="json-editor-header">
+                <h2>JSON 编辑器</h2>
+                <div>
+                    <button class="btn" id="format-json"><i class="fas fa-align-left"></i> 格式化</button>
+                    <button class="btn" id="apply-json"><i class="fas fa-check"></i> 应用</button>
+                    <button class="btn btn-danger" id="close-json"><i class="fas fa-times"></i> 关闭</button>
+                </div>
+            </div>
+            <div class="json-editor-body">
+                <textarea class="json-editor-textarea" id="json-textarea"></textarea>
+            </div>
+            <div>
+                <small>提示: 编辑JSON数据后点击"应用"按钮生效，点击"格式化"按钮美化JSON</small>
+            </div>
+        </div>
+    </div>
+    
+    <!-- SQL生成器模态框 -->
+    <div class="sql-modal" id="sql-modal">
+        <div class="sql-modal-content">
+            <div class="sql-modal-header">
+                <h2>生成的SQL</h2>
+                <div>
+                    <button class="btn" id="copy-sql"><i class="fas fa-copy"></i> 复制SQL</button>
+                    <button class="btn btn-success" id="execute-sql"><i class="fas fa-play"></i> 执行SQL</button>
+                    <button class="btn btn-danger" id="close-sql"><i class="fas fa-times"></i> 关闭</button>
+                </div>
+            </div>
+            <pre class="sql-modal-body" id="sql-output"></pre>
+            <div>
+                <small>提示: SQL已生成，点击"复制SQL"按钮复制到剪贴板，或点击"执行SQL"在数据库中执行</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通知容器 -->
+    <div id="notification-container"></div>
+
+    <script>
+        // 全局变量
+        let tables = [];
+        let selectedTable = null;
+        let selectedFieldIndex = -1;
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+        let nextTableId = 1;
+        
+        // DOM元素
+        const canvas = document.getElementById('canvas');
+        const toolItems = document.querySelectorAll('.tool-item');
+        const statusBar = document.getElementById('status-bar');
+        
+        // API基础URL
+        const API_BASE = '';
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置拖拽事件
+            setupDragAndDrop();
+            
+            // 设置属性面板事件
+            setupPropertyPanel();
+            
+            // 设置菜单事件
+            setupMenuEvents();
+            
+            // 设置可折叠面板
+            setupCollapsiblePanels();
+            
+            // 加载数据库中的表
+            loadTablesFromDatabase();
+            
+            updateStatusBar();
+        });
+        
+        // 显示通知
+        function showNotification(message, type = 'info') {
+            const container = document.getElementById('notification-container');
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            container.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 100);
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    container.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+        
+        // API请求封装
+        async function apiRequest(url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || `HTTP error! status: ${response.status}`);
+                }
+                
+                return data;
+            } catch (error) {
+                console.error('API请求失败:', error);
+                showNotification(`请求失败: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+        
+        // 从数据库加载表
+        async function loadTablesFromDatabase() {
+            try {
+                showNotification('正在加载表...', 'info');
+                const data = await apiRequest(`${API_BASE}/api/tables`);
+                
+                if (data.success) {
+                    // 转换数据库表结构为前端格式
+                    tables = data.tables.map(table => ({
+                        id: `table-${nextTableId++}`,
+                        name: table.name,
+                        comment: '',
+                        x: Math.random() * 500,
+                        y: Math.random() * 300,
+                        fields: table.columns.map(col => ({
+                            name: col.name,
+                            type: col.type,
+                            length: '',
+                            primary: col.primary_key,
+                            nullable: col.nullable,
+                            unique: false, // 需要从索引信息获取
+                            default: col.default_value || '',
+                            comment: ''
+                        }))
+                    }));
+                    
+                    // 重新渲染所有表
+                    canvas.innerHTML = '';
+                    tables.forEach(table => renderTable(table));
+                    
+                    if (tables.length > 0) {
+                        selectTable(tables[0]);
+                        if (tables[0].fields.length > 0) {
+                            selectField(tables[0], 0);
+                        }
+                    }
+                    
+                    showNotification(`成功加载 ${tables.length} 个表`, 'success');
+                }
+            } catch (error) {
+                console.error('加载表失败:', error);
+                // 如果加载失败，使用本地示例数据
+                addExampleTable();
+            }
+        }
+        
+        // 保存表到数据库
+        async function saveTableToDatabase(table) {
+            try {
+                showNotification('正在保存表...', 'info');
+                
+                const tableDesign = {
+                    name: table.name,
+                    comment: table.comment,
+                    fields: table.fields.map(field => ({
+                        name: field.name,
+                        type: field.type,
+                        length: field.length,
+                        primary: field.primary,
+                        nullable: field.nullable,
+                        unique: field.unique,
+                        default: field.default,
+                        comment: field.comment
+                    }))
+                };
+                
+                const data = await apiRequest(`${API_BASE}/api/tables`, {
+                    method: 'POST',
+                    body: JSON.stringify({ table: tableDesign })
+                });
+                
+                if (data.success) {
+                    showNotification(`表 ${table.name} 保存成功`, 'success');
+                    return true;
+                }
+            } catch (error) {
+                console.error('保存表失败:', error);
+                return false;
+            }
+        }
+        
+        // 更新表到数据库
+        async function updateTableInDatabase(table) {
+            try {
+                showNotification('正在更新表...', 'info');
+                
+                const tableDesign = {
+                    name: table.name,
+                    comment: table.comment,
+                    fields: table.fields.map(field => ({
+                        name: field.name,
+                        type: field.type,
+                        length: field.length,
+                        primary: field.primary,
+                        nullable: field.nullable,
+                        unique: field.unique,
+                        default: field.default,
+                        comment: field.comment
+                    }))
+                };
+                
+                const data = await apiRequest(`${API_BASE}/api/tables/${table.name}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ table: tableDesign })
+                });
+                
+                if (data.success) {
+                    showNotification(`表 ${table.name} 更新成功`, 'success');
+                    return true;
+                }
+            } catch (error) {
+                console.error('更新表失败:', error);
+                return false;
+            }
+        }
+        
+        // 删除数据库中的表
+        async function deleteTableFromDatabase(tableName) {
+            try {
+                showNotification('正在删除表...', 'info');
+                
+                const data = await apiRequest(`${API_BASE}/api/tables/${tableName}`, {
+                    method: 'DELETE'
+                });
+                
+                if (data.success) {
+                    showNotification(`表 ${tableName} 删除成功`, 'success');
+                    return true;
+                }
+            } catch (error) {
+                console.error('删除表失败:', error);
+                return false;
+            }
+        }
+        
+        // 添加字段到数据库表
+        async function addFieldToDatabase(tableName, field) {
+            try {
+                const data = await apiRequest(`${API_BASE}/api/tables/${tableName}/fields`, {
+                    method: 'POST',
+                    body: JSON.stringify({ field: field })
+                });
+                
+                if (data.success) {
+                    showNotification(`字段 ${field.name} 添加成功`, 'success');
+                    return true;
+                }
+            } catch (error) {
+                console.error('添加字段失败:', error);
+                return false;
+            }
+        }
+        
+        // 更新数据库表中的字段
+        async function updateFieldInDatabase(tableName, fieldName, newField) {
+            try {
+                const data = await apiRequest(`${API_BASE}/api/tables/${tableName}/fields/${fieldName}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ field: newField })
+                });
+                
+                if (data.success) {
+                    showNotification(`字段 ${fieldName} 更新成功`, 'success');
+                    return true;
+                }
+            } catch (error) {
+                console.error('更新字段失败:', error);
+                return false;
+            }
+        }
+        
+        // 删除数据库表中的字段
+        async function deleteFieldFromDatabase(tableName, fieldName) {
+            try {
+                const data = await apiRequest(`${API_BASE}/api/tables/${tableName}/fields/${fieldName}`, {
+                    method: 'DELETE'
+                });
+                
+                if (data.success) {
+                    showNotification(`字段 ${fieldName} 删除成功`, 'success');
+                    return true;
+                }
+            } catch (error) {
+                console.error('删除字段失败:', error);
+                return false;
+            }
+        }
+        
+        // 设置拖拽功能
+        function setupDragAndDrop() {
+            // 工具箱拖拽
+            toolItems.forEach(item => {
+                if (item.getAttribute('draggable') === 'true') {
+                    item.addEventListener('dragstart', function(e) {
+                        e.dataTransfer.setData('text/plain', e.target.getAttribute('data-type'));
+                    });
+                }
+            });
+            
+            // 画布接收拖拽
+            canvas.addEventListener('dragover', function(e) {
+                e.preventDefault();
+            });
+            
+            canvas.addEventListener('drop', function(e) {
+                e.preventDefault();
+                const type = e.dataTransfer.getData('text/plain');
+                
+                if (type === 'table') {
+                    createTable(e.clientX - canvas.getBoundingClientRect().left, 
+                               e.clientY - canvas.getBoundingClientRect().top);
+                }
+            });
+        }
+        
+        // 设置可折叠面板
+        function setupCollapsiblePanels() {
+            const tableHeader = document.getElementById('table-properties-header');
+            const tableContent = document.getElementById('table-properties-content');
+            const fieldHeader = document.getElementById('field-properties-header');
+            const fieldContent = document.getElementById('field-properties-content');
+            
+            // 表属性面板
+            tableHeader.addEventListener('click', function() {
+                const isCollapsed = tableHeader.classList.toggle('collapsed');
+                tableContent.classList.toggle('collapsed', isCollapsed);
+            });
+            
+            // 字段属性面板
+            fieldHeader.addEventListener('click', function() {
+                const isCollapsed = fieldHeader.classList.toggle('collapsed');
+                fieldContent.classList.toggle('collapsed', isCollapsed);
+            });
+        }
+        
+        // 创建新表
+        function createTable(x, y) {
+            const tableId = 'table-' + nextTableId++;
+            const table = {
+                id: tableId,
+                name: 'new_table',
+                comment: '',
+                x: x,
+                y: y,
+                fields: [
+                    { name: 'id', type: 'INTEGER', length: '', primary: true, nullable: false, unique: false, default: '', comment: '主键ID' }
+                ]
+            };
+            
+            tables.push(table);
+            renderTable(table);
+            selectTable(table);
+            // 自动选中第一个字段
+            if (table.fields.length > 0) {
+                selectField(table, 0);
+            }
+            updateStatusBar();
+        }
+        
+        // 渲染表到画布
+        function renderTable(table) {
+            // 如果表已经存在，先移除
+            const existingTable = document.getElementById(table.id);
+            if (existingTable) {
+                existingTable.remove();
+            }
+            
+            // 创建表元素
+            const tableElement = document.createElement('div');
+            tableElement.id = table.id;
+            tableElement.className = 'table';
+            tableElement.style.left = table.x + 'px';
+            tableElement.style.top = table.y + 'px';
+            
+            // 表头
+            const tableHeader = document.createElement('div');
+            tableHeader.className = 'table-header';
+            
+            const tableName = document.createElement('span');
+            tableName.textContent = table.name;
+            
+            const tableActions = document.createElement('div');
+            tableActions.className = 'table-actions';
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'table-action-btn';
+            deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            deleteBtn.title = '删除表';
+            deleteBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                deleteTable(table);
+            });
+            
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'table-action-btn';
+            copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
+            copyBtn.title = '复制表';
+            copyBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                copyTable(table);
+            });
+            
+            tableActions.appendChild(copyBtn);
+            tableActions.appendChild(deleteBtn);
+            
+            tableHeader.appendChild(tableName);
+            tableHeader.appendChild(tableActions);
+            tableElement.appendChild(tableHeader);
+            
+            // 表体
+            const tableBody = document.createElement('div');
+            tableBody.className = 'table-body';
+            
+            table.fields.forEach((field, index) => {
+                const row = document.createElement('div');
+                row.className = 'table-row';
+                if (selectedTable === table && selectedFieldIndex === index) {
+                    row.classList.add('selected');
+                }
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'field-name';
+                nameSpan.textContent = field.name;
+                
+                const typeSpan = document.createElement('span');
+                typeSpan.className = 'field-type';
+                typeSpan.textContent = field.type + (field.length ? '(' + field.length + ')' : '');
+                
+                const fieldActions = document.createElement('div');
+                fieldActions.className = 'field-actions';
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'field-action-btn';
+                deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+                deleteBtn.title = '删除字段';
+                deleteBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    deleteField(table, index);
+                });
+                
+                fieldActions.appendChild(deleteBtn);
+                
+                row.appendChild(nameSpan);
+                row.appendChild(typeSpan);
+                row.appendChild(fieldActions);
+                tableBody.appendChild(row);
+                
+                // 添加字段选择事件
+                row.addEventListener('click', function(e) {
+                    // 防止点击删除按钮时触发选择
+                    if (e.target === deleteBtn || e.target.classList.contains('field-action-btn') || 
+                        e.target.classList.contains('fa-trash')) {
+                        return;
+                    }
+                    selectField(table, index);
+                });
+            });
+            
+            tableElement.appendChild(tableBody);
+            
+            // 添加拖拽事件
+            tableHeader.addEventListener('mousedown', startDrag);
+            
+            // 添加选择事件
+            tableElement.addEventListener('mousedown', function(e) {
+                if (e.target === tableHeader || e.target.closest('.table-actions')) return;
+                selectTable(table);
+            });
+            
+            canvas.appendChild(tableElement);
+        }
+        
+        // 开始拖拽表
+        function startDrag(e) {
+            const tableElement = e.target.closest('.table');
+            const table = tables.find(t => t.id === tableElement.id);
+            
+            if (table) {
+                isDragging = true;
+                selectedTable = table;
+                
+                // 计算鼠标在表内的偏移
+                dragOffset.x = e.clientX - table.x;
+                dragOffset.y = e.clientY - table.y;
+                
+                document.addEventListener('mousemove', dragTable);
+                document.addEventListener('mouseup', stopDrag);
+            }
+        }
+        
+        // 拖拽表
+        function dragTable(e) {
+            if (!isDragging || !selectedTable) return;
+            
+            // 计算新位置
+            const newX = e.clientX - dragOffset.x;
+            const newY = e.clientY - dragOffset.y;
+            
+            // 更新表位置
+            selectedTable.x = newX;
+            selectedTable.y = newY;
+            
+            // 更新UI
+            const tableElement = document.getElementById(selectedTable.id);
+            tableElement.style.left = newX + 'px';
+            tableElement.style.top = newY + 'px';
+        }
+        
+        // 停止拖拽
+        function stopDrag() {
+            isDragging = false;
+            document.removeEventListener('mousemove', dragTable);
+            document.removeEventListener('mouseup', stopDrag);
+        }
+        
+        // 选择表
+        function selectTable(table) {
+            selectedTable = table;
+            selectedFieldIndex = -1;
+            
+            // 更新属性面板
+            document.getElementById('table-name').value = table.name;
+            document.getElementById('table-comment').value = table.comment || '';
+            
+            // 清空字段表单
+            clearFieldForm();
+            
+            // 高亮显示选中的表
+            document.querySelectorAll('.table').forEach(t => {
+                t.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+            });
+            
+            const selectedElement = document.getElementById(table.id);
+            if (selectedElement) {
+                selectedElement.style.boxShadow = '0 4px 15px rgba(52, 152, 219, 0.5)';
+            }
+            
+            updateStatusBar();
+        }
+        
+        // 选择字段
+        function selectField(table, fieldIndex) {
+            selectedTable = table;
+            selectedFieldIndex = fieldIndex;
+            
+            const field = table.fields[fieldIndex];
+            
+            // 更新字段表单
+            document.getElementById('field-name').value = field.name || '';
+            document.getElementById('field-type').value = field.type || 'INTEGER';
+            document.getElementById('field-length').value = field.length || '';
+            document.getElementById('field-default').value = field.default || '';
+            document.getElementById('field-comment').value = field.comment || '';
+            
+            // 确保复选框状态正确
+            document.getElementById('field-primary').checked = Boolean(field.primary);
+            document.getElementById('field-nullable').checked = field.nullable !== false;
+            document.getElementById('field-unique').checked = Boolean(field.unique);
+            
+            // 高亮显示选中的字段
+            document.querySelectorAll('.table-row').forEach(row => {
+                row.classList.remove('selected');
+            });
+            
+            const tableElement = document.getElementById(table.id);
+            if (tableElement) {
+                const rows = tableElement.querySelectorAll('.table-row');
+                if (rows[fieldIndex]) {
+                    rows[fieldIndex].classList.add('selected');
+                }
+            }
+            
+            updateStatusBar();
+        }
+        
+        // 清空字段表单
+        function clearFieldForm() {
+            document.getElementById('field-name').value = '';
+            document.getElementById('field-type').value = 'INTEGER';
+            document.getElementById('field-length').value = '';
+            document.getElementById('field-primary').checked = false;
+            document.getElementById('field-nullable').checked = true;
+            document.getElementById('field-unique').checked = false;
+            document.getElementById('field-default').value = '';
+            document.getElementById('field-comment').value = '';
+        }
+        
+        // 设置属性面板事件
+        function setupPropertyPanel() {
+            // 表名更新
+            document.getElementById('table-name').addEventListener('change', function() {
+                if (selectedTable) {
+                    selectedTable.name = this.value;
+                    const tableHeader = document.querySelector(`#${selectedTable.id} .table-header span`);
+                    if (tableHeader) {
+                        tableHeader.textContent = this.value;
+                    }
+                    updateStatusBar();
+                }
+            });
+            
+            // 表注释更新
+            document.getElementById('table-comment').addEventListener('change', function() {
+                if (selectedTable) {
+                    selectedTable.comment = this.value;
+                }
+            });
+            
+            // 字段属性更新
+            const fieldInputs = [
+                'field-name', 'field-type', 'field-length', 'field-default', 'field-comment',
+                'field-primary', 'field-nullable', 'field-unique'
+            ];
+            
+            fieldInputs.forEach(id => {
+                const element = document.getElementById(id);
+                element.addEventListener('change', function() {
+                    if (selectedTable && selectedFieldIndex >= 0) {
+                        updateFieldFromForm();
+                    }
+                });
+            });
+            
+            // 添加字段
+            document.getElementById('add-field').addEventListener('click', function() {
+                if (selectedTable) {
+                    const fieldName = document.getElementById('field-name').value || 'new_field';
+                    const fieldType = document.getElementById('field-type').value;
+                    const fieldLength = document.getElementById('field-length').value;
+                    const isPrimary = document.getElementById('field-primary').checked;
+                    const isNullable = document.getElementById('field-nullable').checked;
+                    const isUnique = document.getElementById('field-unique').checked;
+                    const defaultValue = document.getElementById('field-default').value;
+                    const fieldComment = document.getElementById('field-comment').value;
+                    
+                    const newField = {
+                        name: fieldName,
+                        type: fieldType,
+                        length: fieldLength,
+                        primary: isPrimary,
+                        nullable: isNullable,
+                        unique: isUnique,
+                        default: defaultValue,
+                        comment: fieldComment
+                    };
+                    
+                    selectedTable.fields.push(newField);
+                    
+                    renderTable(selectedTable);
+                    // 选中新添加的字段
+                    selectField(selectedTable, selectedTable.fields.length - 1);
+                    updateStatusBar();
+                    
+                    // 同步到数据库
+                    addFieldToDatabase(selectedTable.name, newField);
+                }
+            });
+            
+            // 更新字段
+            document.getElementById('update-field').addEventListener('click', function() {
+                if (selectedTable && selectedFieldIndex >= 0) {
+                    updateFieldFromForm();
+                }
+            });
+            
+            // 删除字段
+            document.getElementById('delete-field').addEventListener('click', function() {
+                if (selectedTable && selectedFieldIndex >= 0) {
+                    deleteField(selectedTable, selectedFieldIndex);
+                }
+            });
+            
+            // 删除表
+            document.getElementById('delete-table').addEventListener('click', function() {
+                if (selectedTable) {
+                    deleteTable(selectedTable);
+                }
+            });
+            
+            // 同步表到数据库
+            document.getElementById('sync-table').addEventListener('click', function() {
+                if (selectedTable) {
+                    syncTableToDatabase(selectedTable);
+                }
+            });
+        }
+        
+        // 从表单更新字段
+        function updateFieldFromForm() {
+            const fieldName = document.getElementById('field-name').value;
+            const fieldType = document.getElementById('field-type').value;
+            const fieldLength = document.getElementById('field-length').value;
+            const isPrimary = document.getElementById('field-primary').checked;
+            const isNullable = document.getElementById('field-nullable').checked;
+            const isUnique = document.getElementById('field-unique').checked;
+            const defaultValue = document.getElementById('field-default').value;
+            const fieldComment = document.getElementById('field-comment').value;
+            
+            const oldFieldName = selectedTable.fields[selectedFieldIndex].name;
+            const newField = {
+                name: fieldName,
+                type: fieldType,
+                length: fieldLength,
+                primary: isPrimary,
+                nullable: isNullable,
+                unique: isUnique,
+                default: defaultValue,
+                comment: fieldComment
+            };
+            
+            selectedTable.fields[selectedFieldIndex] = newField;
+            
+            renderTable(selectedTable);
+            // 重新选择当前字段以保持选中状态
+            selectField(selectedTable, selectedFieldIndex);
+            updateStatusBar();
+            
+            // 同步到数据库
+            updateFieldInDatabase(selectedTable.name, oldFieldName, newField);
+        }
+        
+        // 同步表到数据库
+        async function syncTableToDatabase(table) {
+            // 检查表是否已存在
+            const tableExists = await checkTableExists(table.name);
+            
+            if (tableExists) {
+                await updateTableInDatabase(table);
+            } else {
+                await saveTableToDatabase(table);
+            }
+        }
+        
+        // 检查表是否存在
+        async function checkTableExists(tableName) {
+            try {
+                const data = await apiRequest(`${API_BASE}/api/tables`);
+                return data.tables.some(table => table.name === tableName);
+            } catch (error) {
+                return false;
+            }
+        }
+        
+        // 设置菜单事件
+        function setupMenuEvents() {
+            // 新建表按钮
+            document.getElementById('btn-new-table').addEventListener('click', function() {
+                createTable(100, 100);
+            });
+            
+            // 添加字段按钮
+            document.getElementById('btn-add-field').addEventListener('click', function() {
+                if (selectedTable) {
+                    const fieldName = prompt('请输入字段名:', 'new_field');
+                    if (fieldName) {
+                        const newField = {
+                            name: fieldName,
+                            type: 'VARCHAR',
+                            length: '255',
+                            primary: false,
+                            nullable: true,
+                            unique: false,
+                            default: '',
+                            comment: ''
+                        };
+                        
+                        selectedTable.fields.push(newField);
+                        
+                        renderTable(selectedTable);
+                        // 选中新添加的字段
+                        selectField(selectedTable, selectedTable.fields.length - 1);
+                        updateStatusBar();
+                        
+                        // 同步到数据库
+                        addFieldToDatabase(selectedTable.name, newField);
+                    }
+                } else {
+                    alert('请先选择一个表');
+                }
+            });
+            
+            // 复制表按钮
+            document.getElementById('btn-copy-table').addEventListener('click', function() {
+                if (selectedTable) {
+                    copyTable(selectedTable);
+                } else {
+                    alert('请先选择一个表');
+                }
+            });
+            
+            // JSON编辑器按钮
+            document.getElementById('btn-json-editor').addEventListener('click', function() {
+                openJsonEditor();
+            });
+            
+            // 应用JSON
+            document.getElementById('apply-json').addEventListener('click', function() {
+                applyJson();
+            });
+            
+            // 格式化JSON
+            document.getElementById('format-json').addEventListener('click', function() {
+                formatJson();
+            });
+            
+            // 关闭JSON编辑器
+            document.getElementById('close-json').addEventListener('click', function() {
+                document.getElementById('json-editor').style.display = 'none';
+            });
+            
+            // 导出JSON
+            document.getElementById('export-json').addEventListener('click', function() {
+                openJsonEditor();
+            });
+            
+            // 生成SQL
+            document.getElementById('generate-sql').addEventListener('click', function() {
+                generateSql();
+            });
+            
+            // 复制SQL
+            document.getElementById('copy-sql').addEventListener('click', function() {
+                copySqlToClipboard();
+            });
+            
+            // 执行SQL
+            document.getElementById('execute-sql').addEventListener('click', function() {
+                executeSql();
+            });
+            
+            // 关闭SQL模态框
+            document.getElementById('close-sql').addEventListener('click', function() {
+                document.getElementById('sql-modal').style.display = 'none';
+            });
+            
+            // 加载表按钮
+            document.getElementById('load-tables').addEventListener('click', function() {
+                loadTablesFromDatabase();
+            });
+            
+            // 保存表按钮
+            document.getElementById('save-table').addEventListener('click', function() {
+                if (selectedTable) {
+                    syncTableToDatabase(selectedTable);
+                } else {
+                    alert('请先选择一个表');
+                }
+            });
+        }
+        
+        // 打开JSON编辑器
+        function openJsonEditor() {
+            const jsonTextarea = document.getElementById('json-textarea');
+            const jsonData = {
+                tables: tables,
+                nextTableId: nextTableId
+            };
+            
+            // 格式化JSON
+            const formattedJson = JSON.stringify(jsonData, null, 2);
+            jsonTextarea.value = formattedJson;
+            
+            document.getElementById('json-editor').style.display = 'flex';
+        }
+        
+        // 格式化JSON
+        function formatJson() {
+            const jsonTextarea = document.getElementById('json-textarea');
+            try {
+                const jsonData = JSON.parse(jsonTextarea.value);
+                const formattedJson = JSON.stringify(jsonData, null, 2);
+                jsonTextarea.value = formattedJson;
+            } catch (e) {
+                alert('JSON格式错误，无法格式化: ' + e.message);
+            }
+        }
+        
+        // 应用JSON
+        function applyJson() {
+            const jsonTextarea = document.getElementById('json-textarea');
+            try {
+                const jsonData = JSON.parse(jsonTextarea.value);
+                
+                if (jsonData.tables) {
+                    tables = jsonData.tables;
+                    nextTableId = jsonData.nextTableId || nextTableId;
+                    
+                    // 重新渲染所有表
+                    canvas.innerHTML = '';
+                    tables.forEach(table => renderTable(table));
+                    
+                    // 重置选择
+                    selectedTable = null;
+                    selectedFieldIndex = -1;
+                    clearFieldForm();
+                    
+                    updateStatusBar();
+                    
+                    document.getElementById('json-editor').style.display = 'none';
+                    showNotification('JSON数据应用成功', 'success');
+                } else {
+                    alert('JSON数据格式不正确，缺少tables属性');
+                }
+            } catch (e) {
+                alert('JSON格式错误: ' + e.message);
+            }
+        }
+        
+        // 生成SQL
+        function generateSql() {
+            if (tables.length === 0) {
+                alert('没有表可以生成SQL');
+                return;
+            }
+            
+            let sql = '';
+            
+            tables.forEach(table => {
+                sql += `-- 创建表: ${table.name}\n`;
+                sql += `-- 注释: ${table.comment || '无'}\n`;
+                sql += `CREATE TABLE ${table.name} (\n`;
+                
+                table.fields.forEach((field, index) => {
+                    sql += `  ${field.name} ${field.type}`;
+                    
+                    if (field.length) {
+                        sql += `(${field.length})`;
+                    }
+                    
+                    if (field.primary) {
+                        sql += ' PRIMARY KEY';
+                    }
+                    
+                    if (!field.nullable) {
+                        sql += ' NOT NULL';
+                    }
+                    
+                    if (field.unique) {
+                        sql += ' UNIQUE';
+                    }
+                    
+                    if (field.default) {
+                        sql += ` DEFAULT ${field.default}`;
+                    }
+                    
+                    if (field.comment) {
+                        sql += ` COMMENT '${field.comment}'`;
+                    }
+                    
+                    if (index < table.fields.length - 1) {
+                        sql += ',';
+                    }
+                    
+                    sql += '\n';
+                });
+                
+                sql += ');\n\n';
+            });
+            
+            // 应用SQL语法高亮
+            const sqlOutput = document.getElementById('sql-output');
+            sqlOutput.innerHTML = sqlSyntaxHighlight(sql);
+            
+            document.getElementById('sql-modal').style.display = 'flex';
+        }
+        
+        // 执行SQL
+        async function executeSql() {
+            const sqlOutput = document.getElementById('sql-output');
+            const sql = sqlOutput.textContent;
+            
+            if (!sql.trim()) {
+                alert('没有SQL可执行');
+                return;
+            }
+            
+            try {
+                showNotification('正在执行SQL...', 'info');
+                const data = await apiRequest(`${API_BASE}/api/execute-sql`, {
+                    method: 'POST',
+                    body: JSON.stringify({ sql: sql })
+                });
+                
+                if (data.success) {
+                    if (data.results) {
+                        // 显示查询结果
+                        let resultHtml = '<h3>查询结果:</h3>';
+                        resultHtml += '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+                        
+                        // 表头
+                        resultHtml += '<tr>';
+                        data.columns.forEach(col => {
+                            resultHtml += `<th style="border: 1px solid #ddd; padding: 8px; background: #f5f5f5;">${col}</th>`;
+                        });
+                        resultHtml += '</tr>';
+                        
+                        // 数据行
+                        data.results.forEach(row => {
+                            resultHtml += '<tr>';
+                            data.columns.forEach(col => {
+                                resultHtml += `<td style="border: 1px solid #ddd; padding: 8px;">${row[col] || ''}</td>`;
+                            });
+                            resultHtml += '</tr>';
+                        });
+                        
+                        resultHtml += '</table>';
+                        sqlOutput.innerHTML += '\n\n' + resultHtml;
+                    } else {
+                        showNotification(`SQL执行成功，影响 ${data.rows_affected} 行`, 'success');
+                    }
+                }
+            } catch (error) {
+                console.error('执行SQL失败:', error);
+            }
+        }
+        
+        // 复制SQL到剪贴板
+        function copySqlToClipboard() {
+            const sqlOutput = document.getElementById('sql-output');
+            const text = sqlOutput.textContent;
+            
+            navigator.clipboard.writeText(text).then(function() {
+                showNotification('SQL已复制到剪贴板', 'success');
+            }, function(err) {
+                console.error('复制失败: ', err);
+                alert('复制失败，请手动复制');
+            });
+        }
+        
+        // 删除表
+        async function deleteTable(table) {
+            if (confirm(`确定要删除表 "${table.name}" 吗？`)) {
+                // 从数据库中删除
+                const success = await deleteTableFromDatabase(table.name);
+                
+                if (success) {
+                    // 从数组中移除
+                    const index = tables.indexOf(table);
+                    if (index > -1) {
+                        tables.splice(index, 1);
+                    }
+                    
+                    // 从DOM中移除
+                    const tableElement = document.getElementById(table.id);
+                    if (tableElement) {
+                        tableElement.remove();
+                    }
+                    
+                    // 重置选择
+                    if (selectedTable === table) {
+                        selectedTable = null;
+                        selectedFieldIndex = -1;
+                        clearFieldForm();
+                    }
+                    
+                    updateStatusBar();
+                }
+            }
+        }
+        
+        // 复制表
+        function copyTable(table) {
+            const newTable = JSON.parse(JSON.stringify(table));
+            newTable.id = 'table-' + nextTableId++;
+            newTable.name = table.name + '_copy';
+            newTable.x = table.x + 30;
+            newTable.y = table.y + 30;
+            
+            tables.push(newTable);
+            renderTable(newTable);
+            selectTable(newTable);
+            updateStatusBar();
+        }
+        
+        // 删除字段
+        async function deleteField(table, fieldIndex) {
+            const fieldName = table.fields[fieldIndex].name;
+            if (confirm(`确定要删除字段 "${fieldName}" 吗？`)) {
+                // 从数据库中删除
+                const success = await deleteFieldFromDatabase(table.name, fieldName);
+                
+                if (success) {
+                    table.fields.splice(fieldIndex, 1);
+                    
+                    // 如果删除的是当前选中的字段，重置选择
+                    if (selectedTable === table && selectedFieldIndex === fieldIndex) {
+                        selectedFieldIndex = -1;
+                        clearFieldForm();
+                    }
+                    
+                    renderTable(table);
+                    updateStatusBar();
+                }
+            }
+        }
+        
+        // 更新状态栏
+        function updateStatusBar() {
+            if (selectedTable) {
+                if (selectedFieldIndex >= 0) {
+                    const field = selectedTable.fields[selectedFieldIndex];
+                    statusBar.textContent = `表: ${selectedTable.name} | 字段: ${field.name} (${field.type})`;
+                } else {
+                    statusBar.textContent = `表: ${selectedTable.name} | 字段数: ${selectedTable.fields.length}`;
+                }
+            } else {
+                statusBar.textContent = `就绪 - 表数量: ${tables.length}`;
+            }
+        }
+        
+        // 添加示例表
+        function addExampleTable() {
+            const userTable = {
+                id: 'table-1',
+                name: 'users',
+                comment: '用户表',
+                x: 50,
+                y: 50,
+                fields: [
+                    { name: 'id', type: 'INTEGER', length: '', primary: true, nullable: false, unique: true, default: '', comment: '用户ID' },
+                    { name: 'username', type: 'VARCHAR', length: '50', primary: false, nullable: false, unique: true, default: '', comment: '用户名' },
+                    { name: 'email', type: 'VARCHAR', length: '100', primary: false, nullable: false, unique: true, default: '', comment: '邮箱' },
+                    { name: 'password', type: 'VARCHAR', length: '255', primary: false, nullable: false, unique: false, default: '', comment: '密码' },
+                    { name: 'created_at', type: 'DATETIME', length: '', primary: false, nullable: false, unique: false, default: 'CURRENT_TIMESTAMP', comment: '创建时间' }
+                ]
+            };
+            
+            tables.push(userTable);
+            nextTableId = 2;
+            
+            renderTable(userTable);
+            selectTable(userTable);
+            selectField(userTable, 0);
+        }
+        
+        // SQL语法高亮
+        function sqlSyntaxHighlight(sql) {
+            // 关键字
+            const keywords = [
+                'CREATE', 'TABLE', 'PRIMARY', 'KEY', 'NOT', 'NULL', 'UNIQUE', 'DEFAULT', 'COMMENT'
+            ];
+            
+            let highlighted = sql;
+            
+            // 高亮关键字
+            keywords.forEach(keyword => {
+                const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
+                highlighted = highlighted.replace(regex, `<span class="sql-keyword">${keyword}</span>`);
+            });
+            
+            // 高亮表名 (在CREATE TABLE之后)
+            highlighted = highlighted.replace(/CREATE TABLE (\w+)/g, 'CREATE TABLE <span class="sql-table">$1</span>');
+            
+            // 高亮字段名 (每行开始)
+            highlighted = highlighted.replace(/^\s*(\w+)/gm, '<span class="sql-field">$1</span>');
+            
+            // 高亮数据类型
+            const types = ['INTEGER', 'VARCHAR', 'TEXT', 'DATETIME', 'DATE', 'TIME', 'BOOLEAN', 'DECIMAL', 'FLOAT', 'DOUBLE', 'BLOB', 'JSON'];
+            types.forEach(type => {
+                const regex = new RegExp(`\\b${type}\\b`, 'gi');
+                highlighted = highlighted.replace(regex, `<span class="sql-type">${type}</span>`);
+            });
+            
+            // 高亮注释
+            highlighted = highlighted.replace(/--.*$/gm, '<span class="sql-comment">$&</span>');
+            
+            return highlighted;
+        }
+    </script>
+</body>
+</html>
