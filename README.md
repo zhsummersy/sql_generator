@@ -1,6 +1,10 @@
 # 数据库表结构设计器
 
 一个功能强大的可视化数据库表结构设计工具，支持通过拖拽方式设计数据库表结构，并能够生成SQL语句或直接同步到数据库。
+<img width="1920" height="902" alt="image" src="https://github.com/user-attachments/assets/66da57eb-71ba-4792-8516-710846d16a73" />
+<img width="1920" height="902" alt="image" src="https://github.com/user-attachments/assets/87d0324b-ae45-458e-bdcb-23f99475a6cf" />
+<img width="1920" height="902" alt="image" src="https://github.com/user-attachments/assets/fc64f039-2abe-4693-9a66-7c410184a91f" />
+
 
 ## 功能特性
 
